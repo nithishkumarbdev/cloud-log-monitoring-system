@@ -1,0 +1,32 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    # This environment must be created in repo Settings > Environments
+    # with a required reviewer, that's the actual approval gate, not
+    # anything in this file. See README setup section.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: terraform apply
+        working-directory: infra/aws
+        env:
+          TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+          TF_VAR_ssh_ingress_cidr: ${{ secrets.SSH_INGRESS_CIDR }}
+        run: |
+          terraform init
+          terraform apply -auto-approve
